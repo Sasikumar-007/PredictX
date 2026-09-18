@@ -384,6 +384,9 @@ async def run_instant_demo():
 @router.get("/reports/{analysis_id}/pdf")
 async def download_pdf_report(analysis_id: str):
     data = db.get_analysis(analysis_id)
+    if not data and analysis_id == "demo_student_perf":
+        await run_instant_demo()
+        data = db.get_analysis(analysis_id)
     if not data:
         raise HTTPException(status_code=404, detail="Analysis not found.")
     reporter = ReportGenerator(data)
@@ -398,6 +401,9 @@ async def download_pdf_report(analysis_id: str):
 @router.get("/reports/{analysis_id}/csv")
 async def download_csv_report(analysis_id: str):
     data = db.get_analysis(analysis_id)
+    if not data and analysis_id == "demo_student_perf":
+        await run_instant_demo()
+        data = db.get_analysis(analysis_id)
     if not data:
         raise HTTPException(status_code=404, detail="Analysis not found.")
     reporter = ReportGenerator(data)
@@ -412,6 +418,9 @@ async def download_csv_report(analysis_id: str):
 @router.get("/reports/{analysis_id}/json")
 async def download_json_report(analysis_id: str):
     data = db.get_analysis(analysis_id)
+    if not data and analysis_id == "demo_student_perf":
+        await run_instant_demo()
+        data = db.get_analysis(analysis_id)
     if not data:
         raise HTTPException(status_code=404, detail="Analysis not found.")
     reporter = ReportGenerator(data)
