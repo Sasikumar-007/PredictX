@@ -7,9 +7,15 @@ import {
 
 const getApiBase = () => {
   const envUrl = (import.meta.env.VITE_API_BASE_URL as string)?.trim();
-  if (!envUrl) return '/api';
-  const clean = envUrl.replace(/\/+$/, '');
-  return clean.endsWith('/api') ? clean : `${clean}/api`;
+  if (envUrl) {
+    const clean = envUrl.replace(/\/+$/, '');
+    return clean.endsWith('/api') ? clean : `${clean}/api`;
+  }
+  // If running in production (e.g. on Vercel), point directly to live Render backend
+  if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+    return 'https://predictx-tczk.onrender.com/api';
+  }
+  return '/api';
 };
 
 const API_BASE = getApiBase();

@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/:match*",
-      "destination": "https://predictx-tczk.onrender.com/api/:match*"
+      "source": "/api/:path*",
+      "destination": "https://predictx-tczk.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
