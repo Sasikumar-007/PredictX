@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .api.endpoints import router as api_router
@@ -30,8 +32,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount endpoints
+# Mount endpoints (both under /api and root for flexibility)
 app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(api_router)
 
 @app.get("/")
 async def root():

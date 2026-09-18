@@ -5,7 +5,14 @@ import {
   SyntheticEvaluation
 } from '../types';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL as string) || '/api';
+const getApiBase = () => {
+  const envUrl = (import.meta.env.VITE_API_BASE_URL as string)?.trim();
+  if (!envUrl) return '/api';
+  const clean = envUrl.replace(/\/+$/, '');
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
+};
+
+const API_BASE = getApiBase();
 
 export const api = {
   async uploadDataset(file: File, targetColumn?: string): Promise<{ dataset_id: string; profile: DatasetProfile }> {
