@@ -15,6 +15,7 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
   const [selectedTarget, setSelectedTarget] = useState<string>('');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [completedAnalysisId, setCompletedAnalysisId] = useState<string>('');
 
   // ML configuration state
   const [selectedModels, setSelectedModels] = useState<string[]>([
@@ -125,11 +126,11 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
             clearInterval(interval);
             setProgress(100);
             setCurrentStage('Analysis Complete! Loading Dashboard...');
+            setCompletedAnalysisId(analysis_id);
             try {
               await onAnalysisComplete(analysis_id);
             } catch (err: any) {
-              setIsExecuting(false);
-              setErrorMsg(err.message || 'Failed to display dashboard.');
+              console.error('Auto-open failed, manual button available:', err);
             }
           } else if (status.status === 'FAILED') {
             clearInterval(interval);
@@ -569,6 +570,17 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
               <p className="text-xs text-[#a9baae] font-mono">
                 Progress: {progress}% · Running parallelized multi-signal evaluations
               </p>
+              {progress >= 100 && completedAnalysisId && (
+                <div className="pt-2">
+                  <button
+                    onClick={() => onAnalysisComplete(completedAnalysisId)}
+                    className="inline-flex items-center gap-2 bg-[#75d95c] hover:bg-[#8eec77] text-[#121413] px-6 py-2.5 rounded-lg text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-[#121413]" />
+                    <span>View Analysis Dashboard →</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="pt-4 flex justify-between">

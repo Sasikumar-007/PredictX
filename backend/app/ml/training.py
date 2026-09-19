@@ -42,7 +42,7 @@ class ModelTrainer:
     def get_model_instance(self, model_key: str, n_classes: int) -> Any:
         if model_key == "logistic_regression":
             return LogisticRegression(
-                max_iter=1000,
+                max_iter=500,
                 random_state=self.random_state,
                 class_weight="balanced"
             )
@@ -54,31 +54,32 @@ class ModelTrainer:
             )
         elif model_key == "random_forest":
             return RandomForestClassifier(
-                n_estimators=100,
+                n_estimators=50,
                 max_depth=8,
                 min_samples_leaf=3,
                 random_state=self.random_state,
-                n_jobs=-1
+                n_jobs=1
             )
         elif model_key == "xgboost":
             if XGB_AVAILABLE:
                 objective = "binary:logistic" if n_classes <= 2 else "multi:softprob"
                 return XGBClassifier(
-                    n_estimators=100,
+                    n_estimators=50,
                     max_depth=5,
                     learning_rate=0.1,
                     objective=objective,
                     random_state=self.random_state,
                     eval_metric="logloss" if n_classes <= 2 else "mlogloss",
-                    verbosity=0
+                    verbosity=0,
+                    n_jobs=1
                 )
             else:
                 # Fallback to Random Forest variant if XGBoost not installed
                 return RandomForestClassifier(
-                    n_estimators=120,
+                    n_estimators=50,
                     max_depth=6,
                     random_state=self.random_state,
-                    n_jobs=-1
+                    n_jobs=1
                 )
         else:
             raise ValueError(f"Unknown model identifier: {model_key}")
