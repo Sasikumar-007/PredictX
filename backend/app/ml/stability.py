@@ -2,6 +2,7 @@ import numpy as np
 from typing import Dict, List, Any
 from sklearn.utils import resample
 from sklearn.base import clone
+from sklearn.linear_model import LogisticRegression
 
 class StabilityAnalyzer:
     def __init__(self, n_runs: int = 15, top_k: int = 5, random_state: int = 42):
