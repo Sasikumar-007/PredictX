@@ -90,8 +90,9 @@ Render free tier instances have ephemeral disks (SQLite restarts with fresh stor
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
    - **Install Command**: `npm install`
-5. In **Environment Variables**, add:
+5. In **Environment Variables** (Optional):
    - **Key**: `VITE_API_BASE_URL`
-   - **Value**: `https://<your-render-backend-url>/api` *(e.g., `https://predictx-backend.onrender.com/api`)*
+   - **Value**: `https://<your-render-backend-url>/api` *(e.g., `https://predictx-tczk.onrender.com/api`)*
+   - *Note*: This is optional. The included `vercel.json` automatically proxies `/api` requests directly to Render. If you do set this variable in Vercel, ensure it is pasted as a single line without duplicate URLs.
 6. Click **Deploy**.
 7. Once finished, your application will be live at `https://<your-project>.vercel.app`.

@@ -15,6 +15,33 @@ export function App() {
   const [currentTab, setCurrentTab] = useState<string>('landing');
   const [activeAnalysis, setActiveAnalysis] = useState<AnalysisOverview | null>(null);
   const [isDemoLoading, setIsDemoLoading] = useState<boolean>(false);
+  const [backendStatus, setBackendStatus] = useState<'online' | 'connecting' | 'waking_up'>('connecting');
+
+  // Background health check & warm-up on page load
+  useEffect(() => {
+    let isMounted = true;
+    const checkEngine = async () => {
+      try {
+        await api.checkHealth();
+        if (isMounted) setBackendStatus('online');
+      } catch (e) {
+        if (isMounted) {
+          setBackendStatus('waking_up');
+          // Retry after 5 seconds to detect when warm
+          setTimeout(async () => {
+            try {
+              await api.checkHealth();
+              if (isMounted) setBackendStatus('online');
+            } catch {
+              // Ignore subsequent errors
+            }
+          }, 5000);
+        }
+      }
+    };
+    checkEngine();
+    return () => { isMounted = false; };
+  }, []);
 
   // Global instant demo launcher
   const handleLaunchDemo = async () => {
@@ -23,6 +50,7 @@ export function App() {
       const demoData = await api.runInstantDemo();
       setActiveAnalysis(demoData);
       setCurrentTab('analysis');
+      setBackendStatus('online');
     } catch (e) {
       console.error('Failed to load demo:', e);
     } finally {
@@ -35,6 +63,7 @@ export function App() {
       const data = await api.getAnalysisOverview(analysisId);
       setActiveAnalysis(data);
       setCurrentTab('analysis');
+      setBackendStatus('online');
     } catch (e) {
       console.error('Failed to open analysis:', e);
     }
@@ -52,6 +81,7 @@ export function App() {
         onSelectTab={(tab) => setCurrentTab(tab)}
         onLaunchDemo={handleLaunchDemo}
         isDemoLoading={isDemoLoading}
+        backendStatus={backendStatus}
       />
 
       {/* Main Page Content */}

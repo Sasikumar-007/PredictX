@@ -54,6 +54,14 @@ class DatabaseManager:
                     FOREIGN KEY (dataset_id) REFERENCES datasets(id)
                 )
             """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS dataset_csv_data (
+                    id TEXT PRIMARY KEY,
+                    csv_content TEXT NOT NULL,
+                    created_at TEXT
+                )
+            """)
             
             conn.commit()
             conn.close()
@@ -131,6 +139,28 @@ class DatabaseManager:
                 data = json.loads(row[0])
                 self.datasets_cache[dataset_id] = data
                 return data
+        return None
+
+    def save_raw_csv(self, dataset_id: str, csv_content: str):
+        with db_lock:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO dataset_csv_data (id, csv_content, created_at)
+                VALUES (?, ?, ?)
+            """, (dataset_id, csv_content, datetime.utcnow().isoformat()))
+            conn.commit()
+            conn.close()
+
+    def get_raw_csv(self, dataset_id: str) -> Optional[str]:
+        with db_lock:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT csv_content FROM dataset_csv_data WHERE id = ?", (dataset_id,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                return row[0]
         return None
 
     def save_analysis_status(self, analysis_id: str, status: str, progress: int, stage: str, error: Optional[str] = None):

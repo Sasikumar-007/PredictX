@@ -1,11 +1,14 @@
 import io
 import uuid
 import pandas as pd
+# pyrefly: ignore [missing-import]
 import numpy as np
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, Optional, List
+# pyrefly: ignore [missing-import]
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks, Response
+# pyrefly: ignore [missing-import]
 from fastapi.responses import JSONResponse
 
 from ..config import settings
@@ -41,6 +44,23 @@ def execute_analysis_pipeline(analysis_id: str, dataset_id: str, config: Analysi
     """
     try:
         df = raw_dataframes.get(dataset_id)
+        if df is None:
+            raw_csv = db.get_raw_csv(dataset_id)
+            if raw_csv:
+                df = pd.read_csv(io.StringIO(raw_csv))
+                profile = db.get_dataset(dataset_id)
+                df.name = profile.get("filename", "Dataset") if profile else "Dataset"
+                raw_dataframes[dataset_id] = df
+            elif dataset_id == "demo_dataset":
+                generator = SyntheticDataGenerator(random_state=42)
+                df, _ = generator.generate_student_demo(n_rows=1000)
+                df.name = "Student Performance Demo"
+                raw_dataframes[dataset_id] = df
+            elif dataset_id.startswith("synth_"):
+                generator = SyntheticDataGenerator(random_state=42)
+                df, _ = generator.generate_research_dataset(n_rows=1000)
+                df.name = "Synthetic Research Benchmark"
+                raw_dataframes[dataset_id] = df
         if df is None:
             db.save_analysis_status(analysis_id, "FAILED", 0, "Dataset not found", "Dataset session expired")
             return
@@ -170,6 +190,10 @@ async def upload_dataset(
         
         dataset_id = str(uuid.uuid4())[:8]
         raw_dataframes[dataset_id] = df
+        try:
+            db.save_raw_csv(dataset_id, contents.decode('utf-8', errors='ignore'))
+        except Exception:
+            pass
         
         preprocessor = DataPreprocessor()
         profile = preprocessor.profile_dataframe(df, target_col=target_column)
@@ -301,6 +325,10 @@ async def generate_synthetic_dataset(config: SyntheticDataConfig):
     dataset_id = f"synth_{uuid.uuid4().hex[:6]}"
     df.name = "Synthetic Research Benchmark"
     raw_dataframes[dataset_id] = df
+    try:
+        db.save_raw_csv(dataset_id, df.to_csv(index=False))
+    except Exception:
+        pass
     
     preprocessor = DataPreprocessor()
     profile = preprocessor.profile_dataframe(df, target_col="target")

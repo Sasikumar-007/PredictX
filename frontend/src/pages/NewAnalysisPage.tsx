@@ -58,7 +58,10 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
         setStep(2);
       }
     } catch (e: any) {
-      setErrorMsg(e.message || 'Failed to load preset.');
+      const msg = e.message === 'Not Found'
+        ? 'Backend endpoint returned 404. If Render free tier is waking up from sleep, please wait ~30s and try again.'
+        : (e.message || 'Failed to load preset.');
+      setErrorMsg(msg);
     } finally {
       setIsUploading(false);
     }
@@ -83,7 +86,10 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
       }
       setStep(2);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to parse CSV.');
+      const msg = err.message === 'Not Found'
+        ? 'Upload endpoint returned 404. If Render is waking up, please wait a moment and try again.'
+        : (err.message || 'Failed to parse CSV.');
+      setErrorMsg(msg);
     } finally {
       setIsUploading(false);
     }
@@ -160,9 +166,17 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
       </div>
 
       {errorMsg && (
-        <div className="mb-6 p-4 rounded-lg bg-[#381616] border border-[#682c2c] text-xs text-[#f1c5c5] flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-[#cb5f5f] shrink-0" />
-          <span>{errorMsg}</span>
+        <div className="mb-6 p-4 rounded-lg bg-[#381616] border border-[#682c2c] text-xs text-[#f1c5c5] flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-[#cb5f5f] shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            onClick={() => setErrorMsg('')}
+            className="text-xs text-[#f1c5c5]/80 hover:text-white underline cursor-pointer ml-4 shrink-0"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

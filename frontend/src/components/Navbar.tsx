@@ -8,6 +8,7 @@ interface NavbarProps {
   onSelectTab: (tab: string) => void;
   onLaunchDemo: () => void;
   isDemoLoading: boolean;
+  backendStatus?: 'online' | 'connecting' | 'waking_up';
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -15,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTab,
   onLaunchDemo,
   isDemoLoading,
+  backendStatus = 'connecting',
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[#2b3530] bg-[#141715]/90 backdrop-blur-md">
@@ -79,8 +81,27 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </nav>
 
-        {/* Action Button */}
+        {/* Action Button & Backend Status */}
         <div className="flex items-center space-x-3">
+          {backendStatus === 'online' && (
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1a2920] border border-[#2d4737] text-[11px] font-mono text-[#75d95c]" title="FastAPI Backend Engine is online and responding">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#75d95c] animate-pulse" />
+              <span>Engine Online</span>
+            </div>
+          )}
+          {backendStatus === 'waking_up' && (
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#2d2416] border border-[#523e1e] text-[11px] font-mono text-[#f5a742]" title="Render backend is warming up (~30-45s cold start)">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f5a742] animate-ping" />
+              <span>Waking Engine...</span>
+            </div>
+          )}
+          {backendStatus === 'connecting' && (
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1e2320] border border-[#303833] text-[11px] font-mono text-[#a9baae]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#a9baae]" />
+              <span>Connecting...</span>
+            </div>
+          )}
+
           <button
             onClick={onLaunchDemo}
             disabled={isDemoLoading}
