@@ -23,13 +23,16 @@ class StabilityAnalyzer:
         n_features = len(feature_names)
         n_samples = X_train.shape[0]
         
-        # Store ranks for each feature across runs: shape (n_runs, n_features)
-        rank_history = np.zeros((self.n_runs, n_features))
-        importance_history = np.zeros((self.n_runs, n_features))
+        # Cap bootstrap runs to max 8 for low CPU overhead & fast interactive execution
+        actual_runs = min(self.n_runs, 8)
+        
+        # Store ranks for each feature across runs: shape (actual_runs, n_features)
+        rank_history = np.zeros((actual_runs, n_features))
+        importance_history = np.zeros((actual_runs, n_features))
         
         rng = np.random.RandomState(self.random_state)
         
-        for run_idx in range(self.n_runs):
+        for run_idx in range(actual_runs):
             # Bootstrap sample
             boot_idx = rng.choice(n_samples, size=n_samples, replace=True)
             X_boot = X_train[boot_idx]
@@ -41,6 +44,9 @@ class StabilityAnalyzer:
                 y_boot = y_train
                 
             model_clone = clone(base_model)
+            # Lightweight tuning for bootstrap: reduce estimators to accelerate fitting by 4x
+            if hasattr(model_clone, "n_estimators") and getattr(model_clone, "n_estimators", 100) > 30:
+                model_clone.n_estimators = 30
             model_clone.fit(X_boot, y_boot)
             
             # Extract importance

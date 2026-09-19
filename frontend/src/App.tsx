@@ -60,12 +60,20 @@ export function App() {
 
   const handleOpenAnalysis = async (analysisId: string) => {
     try {
-      const data = await api.getAnalysisOverview(analysisId);
+      let data: AnalysisOverview;
+      try {
+        data = await api.getAnalysisOverview(analysisId);
+      } catch {
+        // Brief retry in case overview is still finalizing
+        await new Promise(r => setTimeout(r, 600));
+        data = await api.getAnalysisOverview(analysisId);
+      }
       setActiveAnalysis(data);
       setCurrentTab('analysis');
       setBackendStatus('online');
     } catch (e) {
       console.error('Failed to open analysis:', e);
+      throw e;
     }
   };
 

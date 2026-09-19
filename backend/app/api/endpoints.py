@@ -66,7 +66,7 @@ def execute_analysis_pipeline(analysis_id: str, dataset_id: str, config: Analysi
             return
             
         # 1. Preprocessing Stage
-        db.save_analysis_status(analysis_id, "PREPROCESSING", 15, "Profiling & Preprocessing Dataset")
+        db.save_analysis_status(analysis_id, "PREPROCESSING", 20, "Profiling & Preprocessing Dataset")
         preprocessor = DataPreprocessor()
         X, y, feature_names, prep_summary = preprocessor.preprocess(
             df=df,
@@ -75,7 +75,7 @@ def execute_analysis_pipeline(analysis_id: str, dataset_id: str, config: Analysi
         )
         
         # 2. Model Training Stage
-        db.save_analysis_status(analysis_id, "TRAINING", 35, "Training ML Models (LR, DT, RF, XGB)")
+        db.save_analysis_status(analysis_id, "TRAINING", 40, "Training ML Models (LR, DT, RF, XGB)")
         trainer = ModelTrainer(random_state=config.random_seed)
         X_train, X_test, y_train, y_test = trainer.split_data(X, y)
         metrics = trainer.train_all(X_train, X_test, y_train, y_test, selected_models=config.models_to_train)
@@ -83,7 +83,7 @@ def execute_analysis_pipeline(analysis_id: str, dataset_id: str, config: Analysi
         best_model = trainer.models[best_model_name]
         
         # 3. Feature Importance Stage
-        db.save_analysis_status(analysis_id, "EXPLAINING", 55, "Calculating SHAP, Permutation & Model Importance")
+        db.save_analysis_status(analysis_id, "EXPLAINING", 60, "Calculating Fast SHAP & Permutation Importances")
         imp_engine = FeatureImportanceEngine(random_state=config.random_seed)
         unified_table = imp_engine.generate_unified_table(
             model=best_model,
@@ -95,9 +95,8 @@ def execute_analysis_pipeline(analysis_id: str, dataset_id: str, config: Analysi
         unified_imp_dict = {item["feature"]: item["consensus_importance"] for item in unified_table}
         
         # 4. Reliability Diagnostics Stage
-        db.save_analysis_status(analysis_id, "ANALYZING", 75, "Running Multi-Signal Reliability Engine")
-        
         # 4a. Correlation & VIF
+        db.save_analysis_status(analysis_id, "ANALYZING", 75, "Analyzing Correlation, VIF & Proxy Risk")
         corr_analyzer = CorrelationAnalyzer(threshold=config.correlation_threshold)
         corr_results = corr_analyzer.analyze(X, feature_names)
         
@@ -109,6 +108,7 @@ def execute_analysis_pipeline(analysis_id: str, dataset_id: str, config: Analysi
         proxy_results = proxy_analyzer.analyze(X, feature_names, corr_results)
         
         # 4c. Stability Analysis
+        db.save_analysis_status(analysis_id, "STABILITY", 85, "Running Bootstrap Stability & Model Agreement")
         stab_analyzer = StabilityAnalyzer(n_runs=config.stability_runs, random_state=config.random_seed)
         stability_results = stab_analyzer.analyze(best_model, X_train, y_train, feature_names)
         
@@ -117,6 +117,7 @@ def execute_analysis_pipeline(analysis_id: str, dataset_id: str, config: Analysi
         agreement_results = agree_analyzer.analyze(trainer.models, feature_names)
         
         # 4e. Subgroup Analysis
+        db.save_analysis_status(analysis_id, "TESTING", 92, "Evaluating Subgroup Slices & Perturbation Resilience")
         sub_analyzer = SubgroupAnalyzer()
         # Reconstruct DataFrame for subgroup identification
         X_df = pd.DataFrame(X, columns=feature_names)
@@ -127,7 +128,7 @@ def execute_analysis_pipeline(analysis_id: str, dataset_id: str, config: Analysi
         perturb_results = pert_analyzer.analyze(best_model, X_test, y_test, feature_names, unified_imp_dict)
         
         # 5. Master Reliability Scoring & Plain Language Generator
-        db.save_analysis_status(analysis_id, "GENERATING_REPORT", 90, "Scoring & Generating Plain-Language Explanations")
+        db.save_analysis_status(analysis_id, "GENERATING_REPORT", 97, "Scoring & Generating Plain-Language Explanations")
         rel_analyzer = PredictXReliabilityAnalyzer(
             weights=config.reliability_weights,
             threshold_reliable=settings.THRESHOLD_RELIABLE,

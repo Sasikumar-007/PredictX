@@ -92,17 +92,23 @@ class FeatureImportanceEngine:
             else:
                 background = X_train
                 
-            # Subsample evaluation samples for speed
-            val_samples = X_val if X_val.shape[0] <= 200 else X_val[:200]
+            # Subsample evaluation samples for speed (100 samples is ideal for global ranking)
+            val_samples = X_val if X_val.shape[0] <= 100 else X_val[:100]
             
             if isinstance(model, LogisticRegression):
                 explainer = shap.LinearExplainer(model, background)
                 shap_values = explainer.shap_values(val_samples)
-            elif hasattr(model, "predict_proba") and "Tree" in model.__class__.__name__ or "Forest" in model.__class__.__name__ or "XGB" in model.__class__.__name__:
-                explainer = shap.TreeExplainer(model, data=background, feature_perturbation="interventional")
-                shap_values = explainer.shap_values(val_samples, check_additivity=False)
+            elif hasattr(model, "predict_proba") and any(k in model.__class__.__name__ for k in ("Tree", "Forest", "XGB")):
+                try:
+                    # Native TreeSHAP runs in O(TLD^2) which takes milliseconds
+                    explainer = shap.TreeExplainer(model)
+                    shap_values = explainer.shap_values(val_samples, check_additivity=False)
+                except Exception:
+                    # Fallback to background-assisted explainer with small background
+                    explainer = shap.TreeExplainer(model, data=background[:30])
+                    shap_values = explainer.shap_values(val_samples, check_additivity=False)
             else:
-                explainer = shap.Explainer(model.predict, background)
+                explainer = shap.Explainer(model.predict, background[:30])
                 shap_values = explainer(val_samples).values
                 
             # Process shap_values into 1D mean absolute importance

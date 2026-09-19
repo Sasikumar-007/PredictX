@@ -109,7 +109,7 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
         explanation_methods: selectedMethods,
         correlation_threshold: 0.80,
         vif_threshold: 10.0,
-        stability_runs: 15,
+        stability_runs: 8,
       };
 
       const { analysis_id } = await api.createAnalysis(datasetId, config);
@@ -123,9 +123,14 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
 
           if (status.status === 'COMPLETED') {
             clearInterval(interval);
-            setTimeout(() => {
-              onAnalysisComplete(analysis_id);
-            }, 600);
+            setProgress(100);
+            setCurrentStage('Analysis Complete! Loading Dashboard...');
+            try {
+              await onAnalysisComplete(analysis_id);
+            } catch (err: any) {
+              setIsExecuting(false);
+              setErrorMsg(err.message || 'Failed to display dashboard.');
+            }
           } else if (status.status === 'FAILED') {
             clearInterval(interval);
             setIsExecuting(false);
@@ -134,7 +139,7 @@ export const NewAnalysisPage: React.FC<NewAnalysisPageProps> = ({ onAnalysisComp
         } catch (e) {
           // Keep polling
         }
-      }, 750);
+      }, 600);
     } catch (err: any) {
       setIsExecuting(false);
       setErrorMsg(err.message || 'Failed to trigger analysis.');

@@ -21,28 +21,38 @@ class PerturbationAnalyzer:
         n_classes = len(np.unique(y_test))
         avg_mode = "binary" if n_classes <= 2 else "macro"
         
+        # Subsample test set for fast evaluation
+        if X_test.shape[0] > 150:
+            rng_sub = np.random.RandomState(self.random_state)
+            sub_idx = rng_sub.choice(X_test.shape[0], 150, replace=False)
+            X_eval = X_test[sub_idx]
+            y_eval = y_test[sub_idx]
+        else:
+            X_eval = X_test
+            y_eval = y_test
+
         # Baseline F1
-        y_pred_base = model.predict(X_test)
-        baseline_f1 = float(f1_score(y_test, y_pred_base, average=avg_mode, zero_division=0))
+        y_pred_base = model.predict(X_eval)
+        baseline_f1 = float(f1_score(y_eval, y_pred_base, average=avg_mode, zero_division=0))
         
-        n_samples = X_test.shape[0]
+        n_samples = X_eval.shape[0]
         rng = np.random.RandomState(self.random_state)
         
         results = []
         for i, feat in enumerate(feature_names):
             # 1. Shuffle perturbation
-            X_shuffled = X_test.copy()
+            X_shuffled = X_eval.copy()
             shuffle_idx = rng.permutation(n_samples)
             X_shuffled[:, i] = X_shuffled[shuffle_idx, i]
             
             y_pred_shuffled = model.predict(X_shuffled)
-            shuffled_f1 = float(f1_score(y_test, y_pred_shuffled, average=avg_mode, zero_division=0))
+            shuffled_f1 = float(f1_score(y_eval, y_pred_shuffled, average=avg_mode, zero_division=0))
             
             # 2. Removal perturbation (mask with feature mean)
-            X_removed = X_test.copy()
-            X_removed[:, i] = np.mean(X_test[:, i])
+            X_removed = X_eval.copy()
+            X_removed[:, i] = np.mean(X_eval[:, i])
             y_pred_removed = model.predict(X_removed)
-            removed_f1 = float(f1_score(y_test, y_pred_removed, average=avg_mode, zero_division=0))
+            removed_f1 = float(f1_score(y_eval, y_pred_removed, average=avg_mode, zero_division=0))
             
             # Delta is performance degradation caused by perturbation
             f1_drop = max(0.0, baseline_f1 - shuffled_f1)
