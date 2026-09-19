@@ -188,6 +188,9 @@ export interface JobStatus {
 }
 
 export interface SyntheticEvaluation {
+  analysis_id?: string;
+  seed?: number;
+  noise_level?: number;
   precision: number;
   recall: number;
   f1: number;

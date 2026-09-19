@@ -47,6 +47,8 @@ class StabilityAnalyzer:
             # Lightweight tuning for bootstrap: reduce estimators to accelerate fitting by 4x
             if hasattr(model_clone, "n_estimators") and getattr(model_clone, "n_estimators", 100) > 30:
                 model_clone.n_estimators = 30
+            if hasattr(model_clone, "n_jobs") and not isinstance(model_clone, LogisticRegression):
+                model_clone.n_jobs = 1
             model_clone.fit(X_boot, y_boot)
             
             # Extract importance

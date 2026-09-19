@@ -122,7 +122,9 @@ export function App() {
           />
         )}
 
-        {currentTab === 'evaluation' && <ResearchEvaluationPage />}
+        {currentTab === 'evaluation' && (
+          <ResearchEvaluationPage onOpenAnalysis={handleOpenAnalysis} />
+        )}
 
         {currentTab === 'comparative' && (
           <ComparativePage

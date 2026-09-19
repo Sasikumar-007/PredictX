@@ -171,6 +171,41 @@ export const api = {
     return data.data;
   },
 
+  async getResearchBenchmark(seed: number = 42, noise: number = 0.12, forceRefresh: boolean = false): Promise<SyntheticEvaluation> {
+    try {
+      const res = await fetchWithFallback(`/synthetic/benchmark?seed=${seed}&noise_level=${noise}&force_refresh=${forceRefresh}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data) return data.data;
+      }
+    } catch (e) {
+      console.warn('Dedicated benchmark endpoint warming up, falling back:', e);
+    }
+
+    // Fast fallback with 300 rows and 4 stability runs:
+    const synth = await this.generateSynthetic(300, noise, seed);
+    const config = {
+      target_column: 'target',
+      models_to_train: ['logistic_regression', 'random_forest'],
+      stability_runs: 4,
+      subgroup_column: 'demographic_slice',
+    };
+    const { analysis_id } = await this.createAnalysis(synth.dataset_id, config);
+    
+    // Poll until completed (timeout after 25s)
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 600));
+      const status = await this.getAnalysisStatus(analysis_id);
+      if (status.status === 'COMPLETED') {
+        return await this.evaluateSynthetic(analysis_id);
+      }
+      if (status.status === 'FAILED') {
+        throw new Error(status.error_message || 'Benchmark analysis failed.');
+      }
+    }
+    throw new Error('Benchmark calculation timed out. Please retry.');
+  },
+
   async evaluateSynthetic(analysisId: string): Promise<SyntheticEvaluation> {
     const res = await fetchWithFallback(`/synthetic/evaluate/${analysisId}`);
     if (!res.ok) throw new Error('Evaluation failed');

@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Sparkles, CheckCircle2, XCircle, AlertCircle, Info, Activity } from 'lucide-react';
+import { Play, Sparkles, CheckCircle2, XCircle, AlertCircle, Info, Activity, ArrowRight, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 import { SyntheticEvaluation } from '../types';
 
-export const ResearchEvaluationPage: React.FC = () => {
+interface ResearchEvaluationPageProps {
+  onOpenAnalysis?: (analysisId: string) => void;
+}
+
+export const ResearchEvaluationPage: React.FC<ResearchEvaluationPageProps> = ({ onOpenAnalysis }) => {
   const [evaluation, setEvaluation] = useState<SyntheticEvaluation | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -12,10 +16,11 @@ export const ResearchEvaluationPage: React.FC = () => {
   const [trialCount, setTrialCount] = useState<number>(1);
 
   useEffect(() => {
-    runBenchmark(42, 0.12);
+    // Fast initial load (cached benchmark)
+    runBenchmark(42, 0.12, false);
   }, []);
 
-  const runBenchmark = async (seedToUse?: number, noiseToUse?: number) => {
+  const runBenchmark = async (seedToUse?: number, noiseToUse?: number, forceRefresh: boolean = true) => {
     setLoading(true);
     setErrorMsg('');
     const nextSeed = seedToUse !== undefined ? seedToUse : Math.floor(Math.random() * 100000);
@@ -23,40 +28,13 @@ export const ResearchEvaluationPage: React.FC = () => {
     setCurrentSeed(nextSeed);
 
     try {
-      // 1. Generate synthetic dataset with dynamic seed
-      const synth = await api.generateSynthetic(1000, nextNoise, nextSeed);
+      const evalSummary = await api.getResearchBenchmark(nextSeed, nextNoise, forceRefresh);
+      setEvaluation(evalSummary);
       setTrialCount(prev => prev + 1);
-
-      // 2. Run analysis on it
-      const config = {
-        target_column: 'target',
-        models_to_train: ['logistic_regression', 'random_forest'],
-        stability_runs: 10,
-        subgroup_column: 'demographic_slice',
-      };
-      const { analysis_id } = await api.createAnalysis(synth.dataset_id, config);
-
-      // 3. Poll until done
-      const interval = setInterval(async () => {
-        try {
-          const status = await api.getAnalysisStatus(analysis_id);
-          if (status.status === 'COMPLETED') {
-            clearInterval(interval);
-            const evalSummary = await api.evaluateSynthetic(analysis_id);
-            setEvaluation(evalSummary);
-            setLoading(false);
-          } else if (status.status === 'FAILED') {
-            clearInterval(interval);
-            setLoading(false);
-            setErrorMsg('Benchmark analysis failed.');
-          }
-        } catch (e) {
-          // Poll
-        }
-      }, 750);
     } catch (err: any) {
-      setLoading(false);
       setErrorMsg(err.message || 'Failed to run synthetic benchmark.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,8 +90,33 @@ export const ResearchEvaluationPage: React.FC = () => {
       </div>
 
       {errorMsg && (
-        <div className="p-4 rounded-lg bg-[#381616] border border-[#682c2c] text-xs text-[#f1c5c5]">
-          {errorMsg}
+        <div className="p-4 rounded-lg bg-[#381616] border border-[#682c2c] text-xs text-[#f1c5c5] flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-[#cb5f5f] shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button
+            onClick={() => runBenchmark(currentSeed, noiseLevel, false)}
+            className="px-3 py-1 bg-[#4d1f1f] hover:bg-[#602727] text-white rounded text-xs font-semibold flex items-center gap-1 shrink-0 cursor-pointer"
+          >
+            <RefreshCw className="w-3 h-3" /> Retry
+          </button>
+        </div>
+      )}
+
+      {/* Loading Skeleton */}
+      {loading && !evaluation && (
+        <div className="glow-card p-10 rounded-2xl border border-[#3e4d44] text-center space-y-4">
+          <div className="flex items-center justify-center gap-2 text-sm font-bold text-[#75d95c]">
+            <Activity className="w-6 h-6 animate-spin" />
+            <span>Computing Controlled Ground-Truth Benchmark...</span>
+          </div>
+          <p className="text-xs text-[#a9baae] max-w-md mx-auto">
+            Generating non-linear latent equations, training ML models, and benchmarking PredictX multi-signal diagnostics against mathematically known ground truth.
+          </p>
+          <div className="w-48 bg-[#141715] h-1.5 rounded-full overflow-hidden mx-auto">
+            <div className="bg-[#75d95c] h-full animate-pulse w-full" />
+          </div>
         </div>
       )}
 
@@ -129,6 +132,23 @@ export const ResearchEvaluationPage: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Benchmark Analysis Deep Dive Banner */}
+      {evaluation && evaluation.analysis_id && onOpenAnalysis && (
+        <div className="p-4 rounded-xl bg-[#1a241e] border border-[#2e4736] flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs">
+            <span className="font-bold text-white">Controlled Benchmark Reliability Audit:</span>
+            <span className="text-[#a9baae] ml-2">Inspect individual feature SHAP consensus curves, VIF scores, and perturbation logs for this benchmark run.</span>
+          </div>
+          <button
+            onClick={() => onOpenAnalysis(evaluation.analysis_id!)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#75d95c] hover:bg-[#8eec77] text-[#121413] text-xs font-bold transition-all shrink-0 cursor-pointer shadow-sm"
+          >
+            <span>Open Benchmark Audit</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Metric Cards (Precision, Recall, F1, Accuracy) */}
       {evaluation && evaluation.is_synthetic && (

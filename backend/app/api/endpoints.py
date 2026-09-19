@@ -342,6 +342,63 @@ async def generate_synthetic_dataset(config: SyntheticDataConfig):
         message="Synthetic benchmark generated with ground truth roles."
     )
 
+@router.get("/synthetic/benchmark", response_model=APIResponse)
+async def get_or_run_research_benchmark(
+    seed: int = 42,
+    noise_level: float = 0.12,
+    force_refresh: bool = False
+):
+    """
+    Sub-second instant research benchmark endpoint.
+    Returns quantitative Precision/Recall/F1 against controlled synthetic ground-truth.
+    Caches default benchmark (seed=42, noise=0.12) for instant sub-100ms loading.
+    """
+    cache_key = f"bench_{seed}_{int(round(noise_level * 100))}"
+    if not force_refresh:
+        cached_eval = db.analyses_cache.get(f"eval_{cache_key}")
+        if cached_eval:
+            return APIResponse(success=True, data=cached_eval, message="Cached research benchmark retrieved.")
+            
+    generator = SyntheticDataGenerator(random_state=seed)
+    df, ground_truth = generator.generate_research_dataset(n_rows=300, noise_level=noise_level)
+    df.name = f"Synthetic Benchmark (Seed #{seed})"
+    
+    dataset_id = f"synth_{cache_key}"
+    raw_dataframes[dataset_id] = df
+    try:
+        db.save_raw_csv(dataset_id, df.to_csv(index=False))
+    except Exception:
+        pass
+        
+    preprocessor = DataPreprocessor()
+    profile = preprocessor.profile_dataframe(df, target_col="target")
+    profile["ground_truth"] = ground_truth
+    db.save_dataset(dataset_id, df.name, profile)
+    
+    config = AnalysisConfig(
+        target_column="target",
+        models_to_train=["logistic_regression", "random_forest"],
+        stability_runs=4,
+        correlation_threshold=0.80,
+        subgroup_column="demographic_slice"
+    )
+    
+    analysis_id = f"analysis_{cache_key}"
+    execute_analysis_pipeline(analysis_id, dataset_id, config)
+    completed = db.get_analysis(analysis_id)
+    
+    eval_summary = generator.evaluate_ground_truth(
+        ground_truth=ground_truth,
+        predictx_evaluations=completed.get("reliability_evaluations", []) if completed else []
+    )
+    eval_summary["is_synthetic"] = True
+    eval_summary["analysis_id"] = analysis_id
+    eval_summary["seed"] = seed
+    eval_summary["noise_level"] = noise_level
+    
+    db.analyses_cache[f"eval_{cache_key}"] = eval_summary
+    return APIResponse(success=True, data=eval_summary, message="Research benchmark computed successfully.")
+
 @router.get("/synthetic/evaluate/{analysis_id}", response_model=APIResponse)
 async def evaluate_synthetic_analysis(analysis_id: str):
     """Evaluates PredictX classifications against synthetic ground truth."""
